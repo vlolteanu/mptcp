@@ -24,7 +24,7 @@
 #include <net/secure_seq.h>
 #include <net/ip.h>
 
-static unsigned int inet_ehashfn(struct net *net, const __be32 laddr,
+unsigned int inet_ehashfn(struct net *net, const __be32 laddr,
 				 const __u16 lport, const __be32 faddr,
 				 const __be16 fport)
 {
@@ -35,6 +35,7 @@ static unsigned int inet_ehashfn(struct net *net, const __be32 laddr,
 	return __inet_ehashfn(laddr, lport, faddr, fport,
 			      inet_ehash_secret + net_hash_mix(net));
 }
+EXPORT_SYMBOL(inet_ehashfn);
 
 
 static unsigned int inet_sk_ehashfn(const struct sock *sk)
