@@ -1082,20 +1082,49 @@ void mptcp_options_write(__be32 *ptr, struct tcp_sock *tp,
 		struct mp_add_addr *mpadd = (struct mp_add_addr *)ptr;
 
 		mpadd->kind = TCPOPT_MPTCP;
-		if (opts->add_addr_v4) {
+		if (opts->add_addr_v4 && !opts->add_addr4.port) {
 			mpadd->len = MPTCP_SUB_LEN_ADD_ADDR4;
 			mpadd->sub = MPTCP_SUB_ADD_ADDR;
 			mpadd->ipver = 4;
 			mpadd->addr_id = opts->add_addr4.addr_id;
 			mpadd->u.v4.addr = opts->add_addr4.addr;
 			ptr += MPTCP_SUB_LEN_ADD_ADDR4_ALIGN >> 2;
-		} else if (opts->add_addr_v6) {
+		} else if (opts->add_addr_v4 && opts->add_addr4.port) {
+			u8 *align = ((u8 *)ptr) + MPTCP_SUB_LEN_ADD_ADDR4_P;
+			int nops = MPTCP_SUB_LEN_ADD_ADDR4_P_ALIGN - MPTCP_SUB_LEN_ADD_ADDR4_P;
+			int i;
+			for (i = 0; i < nops; i++)
+				align[i] = TCPOPT_NOP;
+			
+			mpadd->len = MPTCP_SUB_LEN_ADD_ADDR4_P;
+			mpadd->sub = MPTCP_SUB_ADD_ADDR;
+			mpadd->ipver = 4;
+			mpadd->addr_id = opts->add_addr4.addr_id;
+			mpadd->u.v4.addr = opts->add_addr4.addr;
+			mpadd->u.v4.port = opts->add_addr4.port;
+			ptr += MPTCP_SUB_LEN_ADD_ADDR4_P_ALIGN >> 2;
+		} else if (opts->add_addr_v6 && !opts->add_addr6.port) {
 			mpadd->len = MPTCP_SUB_LEN_ADD_ADDR6;
 			mpadd->sub = MPTCP_SUB_ADD_ADDR;
 			mpadd->ipver = 6;
 			mpadd->addr_id = opts->add_addr6.addr_id;
 			memcpy(&mpadd->u.v6.addr, &opts->add_addr6.addr,
 			       sizeof(mpadd->u.v6.addr));
+			ptr += MPTCP_SUB_LEN_ADD_ADDR6_ALIGN >> 2;
+		} else if (opts->add_addr_v6 && opts->add_addr6.port) {
+			u8 *align = ((u8 *)ptr) + MPTCP_SUB_LEN_ADD_ADDR6_P;
+			int nops = MPTCP_SUB_LEN_ADD_ADDR6_P_ALIGN - MPTCP_SUB_LEN_ADD_ADDR6_P;
+			int i;
+			for (i = 0; i < nops; i++)
+				align[i] = TCPOPT_NOP;
+			
+			mpadd->len = MPTCP_SUB_LEN_ADD_ADDR6_P;
+			mpadd->sub = MPTCP_SUB_ADD_ADDR;
+			mpadd->ipver = 6;
+			mpadd->addr_id = opts->add_addr6.addr_id;
+			memcpy(&mpadd->u.v6.addr, &opts->add_addr6.addr,
+			       sizeof(mpadd->u.v6.addr));
+			mpadd->u.v6.port = opts->add_addr6.port;
 			ptr += MPTCP_SUB_LEN_ADD_ADDR6_ALIGN >> 2;
 		}
 

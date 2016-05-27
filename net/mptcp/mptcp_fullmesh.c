@@ -1554,6 +1554,7 @@ static void full_mesh_addr_signal(struct sock *sk, unsigned *size,
 		opts->mptcp_options |= OPTION_ADD_ADDR;
 		opts->add_addr4.addr_id = mptcp_local->locaddr4[ind].loc4_id;
 		opts->add_addr4.addr = mptcp_local->locaddr4[ind].addr;
+		opts->add_addr4.port = 0;
 		opts->add_addr_v4 = 1;
 
 		if (skb) {
@@ -1577,6 +1578,7 @@ skip_ipv4:
 		opts->mptcp_options |= OPTION_ADD_ADDR;
 		opts->add_addr6.addr_id = mptcp_local->locaddr6[ind].loc6_id;
 		opts->add_addr6.addr = mptcp_local->locaddr6[ind].addr;
+		opts->add_addr6.port = 0;
 		opts->add_addr_v6 = 1;
 
 		if (skb) {
