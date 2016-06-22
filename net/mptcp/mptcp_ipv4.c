@@ -92,6 +92,10 @@ static int mptcp_v4_init_req(struct request_sock *req, struct sock *sk,
 	 */
 	if (!want_cookie)
 		mptcp_reqsk_init(req, skb, false);
+	
+	/* mplb stuff */
+	if (skb->mplb.force_bucket)
+		tcp_rsk(req)->mplb.bucket = skb->mplb.bucket;
 
 	return 0;
 }

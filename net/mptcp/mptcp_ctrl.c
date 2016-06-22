@@ -57,6 +57,7 @@
 #include <linux/workqueue.h>
 #include <linux/atomic.h>
 #include <linux/sysctl.h>
+#include <net/mplb.h>
 
 static struct kmem_cache *mptcp_sock_cache __read_mostly;
 static struct kmem_cache *mptcp_cb_cache __read_mostly;
@@ -287,6 +288,16 @@ static void mptcp_set_key_reqsk(struct request_sock *req,
 	mptcp_key_sha1(mtreq->mptcp_loc_key, &mtreq->mptcp_loc_token, NULL);
 }
 
+static void mplbmptcp_force_key_reqsk(struct request_sock *req,
+				     const struct sk_buff *skb)
+{
+	struct mptcp_request_sock *mtreq = mptcp_rsk(req);
+
+	mtreq->mptcp_loc_key = skb->mplb.mptcp_key;
+
+	mptcp_key_sha1(mtreq->mptcp_loc_key, &mtreq->mptcp_loc_token, NULL);
+}
+
 /* New MPTCP-connection request, prepare a new token for the meta-socket that
  * will be created in mptcp_check_req_master(), and store the received token.
  */
@@ -300,10 +311,31 @@ static void mptcp_reqsk_new_mptcp(struct request_sock *req,
 
 	rcu_read_lock();
 	spin_lock(&mptcp_tk_hashlock);
-	do {
+	if (skb->mplb.force_mptcp_key) {
+		/* mplb stuff */
+		mplbmptcp_force_key_reqsk(req, skb);
+		if (mptcp_reqsk_find_tk(mtreq->mptcp_loc_token) ||
+		    mptcp_find_token(mtreq->mptcp_loc_token))
+		{
+			struct mptcp_request_sock *mtreq = mptcp_rsk(req);
+			u32 bucket = ntohl(mtreq->mptcp_loc_token) & MPLB_BUCKET_MASK;
+			
+			do {
+				mptcp_set_key_reqsk(req, skb, mptcp_seed++);
+			} while ((ntohl(mtreq->mptcp_loc_token) & MPLB_BUCKET_MASK) != bucket ||
+				 mptcp_reqsk_find_tk(mtreq->mptcp_loc_token) ||
+				 mptcp_find_token(mtreq->mptcp_loc_token));
+		}
+		
+	}
+	else do {
 		mptcp_set_key_reqsk(req, skb, mptcp_seed++);
 	} while (mptcp_reqsk_find_tk(mtreq->mptcp_loc_token) ||
 		 mptcp_find_token(mtreq->mptcp_loc_token));
+	
+	/* mplb stuff */
+	mtreq->req.mplb.bucket = ntohl(mtreq->mptcp_loc_token) & MPLB_BUCKET_MASK;
+	
 	mptcp_reqsk_insert_tk(req, mtreq->mptcp_loc_token);
 	spin_unlock(&mptcp_tk_hashlock);
 	rcu_read_unlock();
@@ -2284,6 +2316,9 @@ void mptcp_join_reqsk_init(struct mptcp_cb *mpcb, const struct request_sock *req
 	mtreq->rem_id = mopt.rem_id;
 	mtreq->rcv_low_prio = mopt.low_prio;
 	inet_rsk(req)->saw_mpc = 1;
+	
+	/* mplb stuff */
+	mtreq->req.mplb.bucket = ntohl(mtreq->mptcp_loc_token) & MPLB_BUCKET_MASK;
 
 	MPTCP_INC_STATS_BH(sock_net(mpcb->meta_sk), MPTCP_MIB_JOINSYNRX);
 }

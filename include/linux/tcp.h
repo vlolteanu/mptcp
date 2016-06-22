@@ -169,6 +169,11 @@ struct tcp_request_sock {
 						  * FastOpen it's the seq#
 						  * after data-in-SYN.
 						  */
+	
+	/* MPLB stuff */
+	struct {
+		u32 bucket;
+	} mplb;
 };
 
 static inline struct tcp_request_sock *tcp_rsk(const struct request_sock *req)
@@ -397,6 +402,11 @@ struct tcp_sock {
 	u32		mptcp_loc_token;
 	u64		mptcp_loc_key;
 #endif /* CONFIG_MPTCP */
+	
+	/* MPLB stuff */
+	struct {
+		u32 bucket;
+	} mplb;
 };
 
 enum tsq_flags {
@@ -429,6 +439,11 @@ struct tcp_timewait_sock {
 	struct tcp_md5sig_key	  *tw_md5_key;
 #endif
 	struct mptcp_tw		  *mptcp_tw;
+	
+	/* MPLB stuff */
+	struct {
+		u32 bucket;
+	} mplb;
 };
 
 static inline struct tcp_timewait_sock *tcp_twsk(const struct sock *sk)

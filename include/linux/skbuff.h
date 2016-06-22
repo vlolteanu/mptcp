@@ -647,6 +647,14 @@ struct sk_buff {
 	/* private: */
 	__u32			headers_end[0];
 	/* public: */
+	
+	/* MPLB stuff */
+	struct {
+		int force_mptcp_key;
+		__u64 mptcp_key;
+		int force_bucket;
+		__u32 bucket;
+	} mplb;
 
 	/* These elements must be at the end, see alloc_skb() for details.  */
 	sk_buff_data_t		tail;

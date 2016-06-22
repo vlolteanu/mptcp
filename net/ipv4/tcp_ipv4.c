@@ -87,6 +87,8 @@
 #include <linux/crypto.h>
 #include <linux/scatterlist.h>
 
+#include <net/mplb.h>
+
 int sysctl_tcp_tw_reuse __read_mostly;
 int sysctl_tcp_low_latency __read_mostly;
 EXPORT_SYMBOL(sysctl_tcp_low_latency);
@@ -819,7 +821,7 @@ static void tcp_v4_timewait_ack(struct sock *sk, struct sk_buff *skb)
 	tcp_v4_send_ack(skb, tcptw->tw_snd_nxt, tcptw->tw_rcv_nxt,
 			data_ack,
 			tcptw->tw_rcv_wnd >> tw->tw_rcv_wscale,
-			tcp_time_stamp + tcptw->tw_ts_offset,
+			mplb_ts_to_wire(tcp_time_stamp, tcptw->tw_ts_offset, tcptw->mplb.bucket),
 			tcptw->tw_ts_recent,
 			tw->tw_bound_dev_if,
 			tcp_twsk_md5_key(tcptw),
@@ -839,7 +841,7 @@ void tcp_v4_reqsk_send_ack(struct sock *sk, struct sk_buff *skb,
 	tcp_v4_send_ack(skb, (sk->sk_state == TCP_LISTEN) ?
 			tcp_rsk(req)->snt_isn + 1 : tcp_sk(sk)->snd_nxt,
 			tcp_rsk(req)->rcv_nxt, 0, req->rcv_wnd,
-			tcp_time_stamp,
+			mplb_ts_to_wire(tcp_time_stamp, 0, tcp_rsk(req)->mplb.bucket),
 			req->ts_recent,
 			0,
 			tcp_md5_do_lookup(sk, (union tcp_md5_addr *)&ip_hdr(skb)->daddr,

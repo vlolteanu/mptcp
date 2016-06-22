@@ -309,6 +309,9 @@ void tcp_time_wait(struct sock *sk, int state, int timeo)
 		tcptw->tw_ts_recent	= tp->rx_opt.ts_recent;
 		tcptw->tw_ts_recent_stamp = tp->rx_opt.ts_recent_stamp;
 		tcptw->tw_ts_offset	= tp->tsoffset;
+		
+		/* MPLB stuff */
+		tcptw->mplb.bucket = tp->mplb.bucket;
 
 		if (mptcp(tp)) {
 			if (mptcp_init_tw_sock(sk, tcptw)) {
@@ -546,6 +549,9 @@ struct sock *tcp_create_openreq_child(struct sock *sk, struct request_sock *req,
 		tcp_ecn_openreq_child(newtp, req);
 		newtp->fastopen_rsk = NULL;
 		newtp->syn_data_acked = 0;
+		
+		/* MPLB stuff */
+		newtp->mplb.bucket = treq->mplb.bucket;
 
 		TCP_INC_STATS_BH(sock_net(sk), TCP_MIB_PASSIVEOPENS);
 	}

@@ -78,6 +78,7 @@
 #include <net/mptcp.h>
 #include <net/mptcp_v4.h>
 #include <net/mptcp_v6.h>
+#include <net/mplb.h>
 
 int sysctl_tcp_timestamps __read_mostly = 1;
 int sysctl_tcp_window_scaling __read_mostly = 1;
@@ -3640,7 +3641,7 @@ void tcp_parse_options(const struct sk_buff *skb,
 				     (!estab && sysctl_tcp_timestamps))) {
 					opt_rx->saw_tstamp = 1;
 					opt_rx->rcv_tsval = get_unaligned_be32(ptr);
-					opt_rx->rcv_tsecr = get_unaligned_be32(ptr + 4);
+					opt_rx->rcv_tsecr = mplb_ts_to_kernel(get_unaligned_be32(ptr + 4), th->syn && !th->ack);
 				}
 				break;
 			case TCPOPT_SACK_PERM:
@@ -3705,7 +3706,7 @@ static bool tcp_parse_aligned_timestamp(struct tcp_sock *tp, const struct tcphdr
 		tp->rx_opt.rcv_tsval = ntohl(*ptr);
 		++ptr;
 		if (*ptr)
-			tp->rx_opt.rcv_tsecr = ntohl(*ptr) - tp->tsoffset;
+			tp->rx_opt.rcv_tsecr = mplb_ts_sub_off(mplb_ts_to_kernel(ntohl(*ptr), th->syn && !th->ack), tp->tsoffset);
 		else
 			tp->rx_opt.rcv_tsecr = 0;
 		return true;
@@ -3733,7 +3734,7 @@ static bool tcp_fast_parse_options(const struct sk_buff *skb,
 	tcp_parse_options(skb, &tp->rx_opt, mptcp(tp) ? &tp->mptcp->rx_opt : NULL,
 			  1, NULL);
 	if (tp->rx_opt.saw_tstamp && tp->rx_opt.rcv_tsecr)
-		tp->rx_opt.rcv_tsecr -= tp->tsoffset;
+		tp->rx_opt.rcv_tsecr = mplb_ts_sub_off(tp->rx_opt.rcv_tsecr, tp->tsoffset);
 
 	return true;
 }
@@ -5476,7 +5477,7 @@ static int tcp_rcv_synsent_state_process(struct sock *sk, struct sk_buff *skb,
 	tcp_parse_options(skb, &tp->rx_opt,
 			  mptcp(tp) ? &tp->mptcp->rx_opt : &mopt, 0, &foc);
 	if (tp->rx_opt.saw_tstamp && tp->rx_opt.rcv_tsecr)
-		tp->rx_opt.rcv_tsecr -= tp->tsoffset;
+		tp->rx_opt.rcv_tsecr = mplb_ts_sub_off(tp->rx_opt.rcv_tsecr, tp->tsoffset);
 
 	if (th->ack) {
 		/* rfc793:
@@ -6126,6 +6127,10 @@ int tcp_conn_request(struct request_sock_ops *rsk_ops,
 		goto drop;
 
 	tcp_rsk(req)->af_specific = af_ops;
+	
+	/* MPLB stuff */
+	if (skb->mplb.force_bucket)
+		tcp_rsk(req)->mplb.bucket = skb->mplb.bucket;
 
 	tcp_clear_options(&tmp_opt);
 	tmp_opt.mss_clamp = af_ops->mss_clamp;
